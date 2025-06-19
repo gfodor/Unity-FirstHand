@@ -14,7 +14,8 @@ namespace Oculus.Interaction.ComprehensiveSample
         private const string PLAYERPREFS_KEY = "settings.seated_mode";
 
         [SerializeField]
-        private OVRCameraRig _rig;
+        [SerializeField]
+        private Transform _rigRoot; // Root of the XR rig
         [SerializeField]
         private PlayerLocomotor _locomotor;
         [SerializeField]
@@ -36,6 +37,10 @@ namespace Oculus.Interaction.ComprehensiveSample
         {
             yield return null; //takes 2 frame for the camera to get its position
             yield return null;
+            if (_rigRoot == null && Camera.main)
+            {
+                _rigRoot = Camera.main.transform.parent;
+            }
             _locomotor.WhenLocomotionEventHandled += SyncPosition;
             SyncPosition();
             UpdateCameraRigHeight();
@@ -43,7 +48,9 @@ namespace Oculus.Interaction.ComprehensiveSample
 
         private void Update()
         {
-            var eyePose = PoseUtils.Delta(_rig.transform, _rig.centerEyeAnchor);
+            var head = Camera.main?.transform;
+            if (!head) return;
+            var eyePose = PoseUtils.Delta(_rigRoot, head);
             eyePose.position = eyePose.position.SetY(_seatedEyeHeight);
             _averageEyeLevel.SetPose(eyePose, Space.Self);
         }
@@ -61,13 +68,13 @@ namespace Oculus.Interaction.ComprehensiveSample
             }
             else if (locomotion.IsSnapTurn())
             {
-                transform.rotation = _rig.transform.rotation;
+                if (_rigRoot) transform.rotation = _rigRoot.rotation;
             }
         }
 
         private void SyncPosition()
         {
-            transform.SetPose(_rig.transform.GetPose());
+            if (_rigRoot) transform.SetPose(_rigRoot.GetPose());
             UpdateCameraRigHeight();
         }
 
@@ -75,13 +82,15 @@ namespace Oculus.Interaction.ComprehensiveSample
         {
             if (IsOn)
             {
-                float playerHeight = _rig.centerEyeAnchor.position.y - _rig.transform.position.y;
+                var head = Camera.main?.transform;
+                if (!head || !_rigRoot) return;
+                float playerHeight = head.position.y - _rigRoot.position.y;
                 float diff = Mathf.Max(_seatedEyeHeight - playerHeight, 0);
-                _rig.transform.position = transform.position + Vector3.up * diff;
+                _rigRoot.position = transform.position + Vector3.up * diff;
             }
             else
             {
-                _rig.transform.SetPose(transform.GetPose());
+                if (_rigRoot) _rigRoot.SetPose(transform.GetPose());
             }
         }
 

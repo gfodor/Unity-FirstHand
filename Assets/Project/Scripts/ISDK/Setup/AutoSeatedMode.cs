@@ -16,10 +16,10 @@ namespace Oculus.Interaction.ComprehensiveSample
             yield return null; // can take 2 frames for the camera to be positioned
             yield return null; // wait a 3rd frame for SeatedMode to have started
 
-            var rig = FindAnyObjectByType<OVRCameraRig>();
-            var head = rig.centerEyeAnchor;
-            var root = rig.trackingSpace;
-            var height = root.InverseTransformPoint(head.position).y;
+            var head = Camera.main?.transform;
+            if (head == null) yield break;
+            var root = head.parent;
+            var height = root ? root.InverseTransformPoint(head.position).y : head.position.y;
 
             if (height < _minimumHeight)
             {
