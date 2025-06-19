@@ -1,6 +1,7 @@
 // Copyright (c) Meta Platforms, Inc. and affiliates.
 
 using UnityEngine;
+using UnityEngine.XR;
 
 namespace Oculus.Interaction.ComprehensiveSample
 {
@@ -9,7 +10,8 @@ namespace Oculus.Interaction.ComprehensiveSample
     /// </summary>
     public class ContainsPlayerActiveState : MonoBehaviour, IActiveState
     {
-        private static OVRCameraRig _mainCamera;
+        private static Camera _mainCamera;
+        private static Transform _origin;
 
         [SerializeField]
         ActiveStateExpectation _head = ActiveStateExpectation.True;
@@ -35,18 +37,19 @@ namespace Oculus.Interaction.ComprehensiveSample
 
                 try
                 {
-                    if (!_mainCamera) _mainCamera = FindObjectOfType<OVRCameraRig>();
+                    if (!_mainCamera) _mainCamera = Camera.main;
                     if (!_mainCamera) return false;
+                    if (_origin == null) _origin = _mainCamera.transform.parent;
 
                     if (_head != ActiveStateExpectation.Any)
                     {
-                        var playerPos = _mainCamera.centerEyeAnchor.transform.position;
+                        var playerPos = _mainCamera.transform.position;
                         if (!_head.Matches(Contains(playerPos))) return false;
                     }
 
                     if (_rig != ActiveStateExpectation.Any)
                     {
-                        var rigPos = _mainCamera.trackingSpace.position;
+                        var rigPos = _origin ? _origin.position : _mainCamera.transform.position;
                         if (!_rig.Matches(Contains(rigPos))) return false;
                     }
 
@@ -54,10 +57,8 @@ namespace Oculus.Interaction.ComprehensiveSample
                     {
                         Vector3 localOffset = new Vector3(-0.1f, 0, 0);
                         bool containsAny =
-                            Contains(_mainCamera.leftHandAnchor.TransformPoint(localOffset)) ||
-                            Contains(_mainCamera.rightHandAnchor.TransformPoint(localOffset)) ||
-                            Contains(_mainCamera.leftControllerAnchor.TransformPoint(localOffset)) ||
-                            Contains(_mainCamera.rightControllerAnchor.TransformPoint(localOffset));
+                            Contains(GetNodeWorldPosition(XRNode.LeftHand) + localOffset) ||
+                            Contains(GetNodeWorldPosition(XRNode.RightHand) + localOffset);
 
                         if (!_hands.Matches(containsAny)) return false;
                     }
@@ -74,6 +75,12 @@ namespace Oculus.Interaction.ComprehensiveSample
         bool Contains(Vector3 point)
         {
             return _collider.IsPointWithinCollider(point);
+        }
+
+        private Vector3 GetNodeWorldPosition(XRNode node)
+        {
+            var localPos = InputTracking.GetLocalPosition(node);
+            return _origin ? _origin.TransformPoint(localPos) : localPos;
         }
 
         private void Awake()
